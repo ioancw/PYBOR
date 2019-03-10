@@ -1,16 +1,16 @@
 # Copyright © 2017 Ondrej Martinsky, All rights reserved
 # http://github.com/omartinsky/pybor
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -33,7 +33,8 @@ from collections import OrderedDict, defaultdict
 
 from pandas import *
 import scipy.optimize
-import copy, os
+import copy
+import os
 
 
 def coalesce(*arg):
@@ -71,6 +72,7 @@ class BuildOutput:
         self.jacobian_dIdP = jacobian_dIdP
         self.instruments = instruments
 
+
 class PriceLadder(collections.OrderedDict):
     def create(data):
         if isinstance(data, pandas.DataFrame):
@@ -88,12 +90,12 @@ class PriceLadder(collections.OrderedDict):
         l = []
         for k, v in self.items():
             if re.match(instrument_regex, k):
-                l.append((k,v))
+                l.append((k, v))
         return PriceLadder.create(OrderedDict(l))
 
     def dataframe(self):
         df = DataFrame.from_dict(self, orient='index')
-        df.columns=['Price']
+        df.columns = ['Price']
         return df
 
 
@@ -103,21 +105,26 @@ def calc_residual(curvemap, instrument_prices, instrument):
     r_target = instrument.par_rate_from_price(price)
     return r_actual - r_target
 
+
 def calc_residuals(dofs, curve_builder, curvemap, instrument_prices, curves_for_stage, instruments_for_stage):
     if curve_builder.progress_monitor:
         curve_builder.progress_monitor.update()
     assert not numpy.isnan(dofs).any()
     curvemap.set_all_dofs(curves_for_stage, dofs)
 
-    y = [calc_residual(curvemap, instrument_prices, i) for i in instruments_for_stage]
+    y = [calc_residual(curvemap, instrument_prices, i)
+         for i in instruments_for_stage]
     return y
+
 
 class CurveBuilder:
     def __init__(self, excel_file, eval_date, progress_monitor=None):
         assert os.path.exists(excel_file)
         xl = ExcelFile(excel_file)
-        self.df_instruments = xl.parse('Instrument Properties', index_col='Name', parse_cols='A:L')
-        self.df_curves = xl.parse('Curve Properties', index_col='Curve', parse_cols='A:C')
+        self.df_instruments = xl.parse(
+            'Instrument Properties', index_col='Name', parse_cols='A:L')
+        self.df_curves = xl.parse(
+            'Curve Properties', index_col='Curve', parse_cols='A:C')
         if (len(self.df_curves) == 0):
             raise BaseException("No curves found in spreadsheet")
         self.curve_templates = list()
@@ -127,7 +134,8 @@ class CurveBuilder:
         self.all_instruments = list()
         self.instrument_positions = dict()
 
-        for curve_name in list(self.df_curves.index):  # Order of curves determined by XLS file:
+        # Order of curves determined by XLS file:
+        for curve_name in list(self.df_curves.index):
             curve_template = CurveTemplate(curve_name)
 
             curve_df = self.df_instruments[
@@ -150,32 +158,44 @@ class CurveBuilder:
                         continue
 
                     if instrument_type == 'Deposit':
-                        inst = Deposit.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = Deposit.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'ZeroRate':
-                        inst = ZeroRate.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = ZeroRate.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'Future':
-                        inst = Future.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = Future.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'Swap':
-                        inst = Swap.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = Swap.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'BasisSwap':
-                        inst = BasisSwap.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = BasisSwap.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'CrossCurrencySwap':
-                        inst = CrossCurrencySwap.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = CrossCurrencySwap.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'MtmCrossCurrencyBasisSwap':
-                        inst = MtmCrossCurrencyBasisSwap.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = MtmCrossCurrencyBasisSwap.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     elif instrument_type == 'TermDeposit':
-                        inst = TermDeposit.CreateFromDataFrameRow(name, eval_date, row)
+                        inst = TermDeposit.CreateFromDataFrameRow(
+                            name, eval_date, row)
                     else:
-                        raise BaseException("Unknown instrument type %s" % instrument_type)
+                        raise BaseException(
+                            "Unknown instrument type %s" % instrument_type)
                 except BaseException as ex:
-                    raise BaseException("Error processing instrument %s" % name) from ex
+                    raise BaseException(
+                        "Error processing instrument %s" % name) from ex
 
-                self.instrument_positions[inst.get_name()] = len(self.all_instruments)
+                self.instrument_positions[inst.get_name()] = len(
+                    self.all_instruments)
                 self.all_instruments.append(inst)
                 curve_template.instruments.append(inst)
 
             if len(curve_template.instruments) == 0:
-                raise BaseException("No instruments found for curve template %s" % curve_template.curve_name)
+                raise BaseException(
+                    "No instruments found for curve template %s" % curve_template.curve_name)
 
             self.curve_templates.append(curve_template)
         pass
@@ -205,14 +225,17 @@ class CurveBuilder:
             for instrument in curve_template.instruments:
                 if (curvemap):
                     rate = instrument.calc_par_rate(curvemap)
-                    out[instrument.name_] = instrument.price_from_par_rate(rate)
-                else: # If curvemap is not provided, generated price ladder will contain zeros.
+                    out[instrument.name_] = instrument.price_from_par_rate(
+                        rate)
+                else:  # If curvemap is not provided, generated price ladder will contain zeros.
                     out[instrument.name_] = 0.0
         return PriceLadder(out)
 
     def get_instrument_rates(self, price_ladder):
-        maturities = [self.get_instrument_by_name(name).get_pillar_date() for name in price_ladder.keys()]
-        rates = [self.get_instrument_by_name(name).par_rate_from_price(price) for name, price in price_ladder.items()]
+        maturities = [self.get_instrument_by_name(
+            name).get_pillar_date() for name in price_ladder.keys()]
+        rates = [self.get_instrument_by_name(name).par_rate_from_price(
+            price) for name, price in price_ladder.items()]
         return array(maturities), array(rates)
 
     def parse_instrument_prices(self, prices):
@@ -222,7 +245,8 @@ class CurveBuilder:
             try:
                 return dict(zip(prices['Instrument'], prices['Price']))
             except BaseException as ex:
-                raise BaseException("Unable to parse dataframe with instrument prices") from ex
+                raise BaseException(
+                    "Unable to parse dataframe with instrument prices") from ex
         else:
             raise BaseException("Unknown type")
 
@@ -236,33 +260,41 @@ class CurveBuilder:
                 pillar.append(pillar_date)
             pillar = array(sorted(set(pillar)))
             assert len(pillar) > 0, "Pillars are empty"
-            dfs = exp(-initial_rate * (pillar - self.eval_date) / 365.)  # initial rates will be circa 2%
+            dfs = exp(-initial_rate * (pillar - self.eval_date) /
+                      365.)  # initial rates will be circa 2%
             curve_name = curve_template.curve_name
-            interpolation = enum_from_string(InterpolationMode, self.df_curves.loc[curve_name].Interpolation)
+            interpolation = enum_from_string(
+                InterpolationMode, self.df_curves.loc[curve_name].Interpolation)
             #print("Creating pillars %i - %i for curve %s" % (pillar_count, pillar_count + len(pillar), curve_name))
             pillar_count += len(pillar)
-            curve = Curve(curve_name, self.eval_date, pillar, dfs, interpolation)
+            curve = Curve(curve_name, self.eval_date,
+                          pillar, dfs, interpolation)
             curvemap.add_curve(curve)
         return curvemap
 
     def build_curves(self, instrument_prices):
         instrument_prices = self.parse_instrument_prices(instrument_prices)
 
-        curvemap = self.create_initial_curvemap(0.02)   # Create unoptimized curve map
+        curvemap = self.create_initial_curvemap(
+            0.02)   # Create unoptimized curve map
 
         stages = self.get_solve_stages()
 
         for iStage, curves_for_stage in enumerate(stages):
-            instruments_for_stage = self.get_instruments_for_stage(curves_for_stage)
+            instruments_for_stage = self.get_instruments_for_stage(
+                curves_for_stage)
             dofs = curvemap.get_all_dofs(curves_for_stage)
-            print("Solving stage %i/%i containing curves %s (%i pillars)" % (iStage+1, len(stages), ", ".join(sorted(curves_for_stage)), len(dofs)))
+            print("Solving stage %i/%i containing curves %s (%i pillars)" %
+                  (iStage+1, len(stages), ", ".join(sorted(curves_for_stage)), len(dofs)))
 
             if (self.progress_monitor):
                 self.progress_monitor.reset()
 
-            arguments = (self, curvemap, instrument_prices, curves_for_stage, instruments_for_stage)
+            arguments = (self, curvemap, instrument_prices,
+                         curves_for_stage, instruments_for_stage)
             bounds = (zeros(len(dofs)), numpy.inf * ones(len(dofs)))
-            solution = scipy.optimize.least_squares(fun=calc_residuals, x0=dofs, args=arguments, bounds=bounds)
+            solution = scipy.optimize.least_squares(
+                fun=calc_residuals, x0=dofs, args=arguments, bounds=bounds)
 
             assert isinstance(solution, scipy.optimize.OptimizeResult)
 
@@ -273,9 +305,11 @@ class CurveBuilder:
         # calculate jacobian matrix
         bump_size = 1e-8
         final_solution = curvemap.get_all_dofs(curvemap.keys())
-        all_curves = [curve_template.curve_name for curve_template in self.curve_templates]
+        all_curves = [
+            curve_template.curve_name for curve_template in self.curve_templates]
         all_instruments = self.get_instruments_for_stage(all_curves)
-        arguments = (self, curvemap, instrument_prices, all_curves, all_instruments)
+        arguments = (self, curvemap, instrument_prices,
+                     all_curves, all_instruments)
         e0 = array(calc_residuals(final_solution, *arguments))
         jacobian_dIdP = []
         for i in range(len(final_solution)):
@@ -293,4 +327,3 @@ class CurveBuilder:
     def get_instrument_by_name(self, name):
         pos = self.instrument_positions[name]
         return self.all_instruments[pos]
-
